@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MASTERSCAN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #eef1f6;
+            color: #334155;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e2e8f0;
+        }
+
+        .sidebar-item-active {
+            background-color: #e2e8f0;
+            border-left: 4px solid #1e293b;
+        }
+
+        .upload-btn {
+            background-color: #1e3a5f;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            background-color: #162a45;
+        }
+
+        .kpi-icon {
+            background-color: #f1f5f9;
+            color: #1e3a5f;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col p-4 md:p-6 lg:p-8">
+
+    <!-- Top Header Bar -->
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div class="flex items-center gap-4">
+            <img src="logo.jpg" alt="Masterscan Logo" class="h-14 w-auto">
+            <div>
+                <h1 class="text-2xl font-black tracking-tight text-slate-800 uppercase leading-none">MASTERSCAN</h1>
+                <h2 class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-2">DAILY FIELD OPERATIONS DASHBOARD</h2>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div class="card px-6 py-3 flex items-center gap-6">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-blue-50 rounded-lg"><i data-lucide="database" class="w-6 h-6 text-blue-800"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase leading-none">Total Records:</p>
+                        <p class="text-xs text-slate-400" id="current-month-label">All Dates</p>
+                    </div>
+                    <span class="text-4xl font-bold text-slate-800" id="stat-total-records">0</span>
+                </div>
+                <div class="h-10 w-[1px] bg-slate-200"></div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase leading-none">DPRS Data Last Refreshed:</p>
+                    <p class="text-sm font-bold text-slate-700 mt-1" id="refresh-time">2023-10-27 16:30</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-1 gap-6">
+        <!-- Sidebar -->
+        <aside class="w-80 flex flex-col gap-6">
+            <div class="card p-6 flex flex-col gap-6">
+                <h2 class="text-sm font-bold text-slate-800 uppercase border-b pb-2">Data Import & Filters</h2>
+
+                <div class="flex flex-col gap-2">
+                    <label
+                        class="upload-btn flex flex-col items-center justify-center p-6 rounded-xl cursor-pointer text-center gap-2 group">
+                        <i data-lucide="upload" class="w-8 h-8 transition-transform group-hover:-translate-y-1"></i>
+                        <span class="text-xs font-bold leading-tight uppercase">Upload Daily<br>Jobs
+                            Spreadsheet<br>(CSV/XLSX)</span>
+                        <input type="file" id="fileInput" class="hidden" accept=".xlsx, .xls, .csv"
+                            onchange="handleFileUpload(event)">
+                    </label>
+                    <div id="file-info"
+                        class="hidden px-4 py-3 bg-blue-50 rounded-xl border border-blue-100 animate-pulse-once">
+                        <p class="text-[10px] font-black text-blue-600 uppercase mb-1 flex items-center gap-1">
+                            <i data-lucide="file-text" class="w-3 h-3"></i> Uploaded File
+                        </p>
+                        <p class="text-xs font-bold text-blue-900 truncate" id="uploaded-filename">No file uploaded</p>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase mb-3 flex items-center gap-1">
+                        <i data-lucide="calendar-range" class="w-3 h-3"></i> Date Range Filter
+                    </p>
+                    <div class="grid grid-cols-1 gap-3">
+                        <div class="relative">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">From Date</p>
+                            <input type="date" id="fromDate"
+                                class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                onchange="updateDashboard()">
+                        </div>
+                        <div class="relative">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">To Date</p>
+                            <input type="date" id="toDate"
+                                class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                                onchange="updateDashboard()">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1">
+                        <i data-lucide="calendar-days" class="w-3 h-3"></i> Select Month (Recent 12)
+                    </p>
+                    <select id="monthSelect" onchange="updateDashboard()"
+                        class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white">
+                        <option value="All">All Months</option>
+                    </select>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase mb-2">Department</p>
+                    <div class="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100"
+                        id="deptList">
+                        <button onclick="filterDept('All')"
+                            class="w-full text-left px-4 py-3 text-sm font-bold hover:bg-slate-50 transition-colors sidebar-item-active"
+                            data-dept="All">All Departments</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard -->
+        <div class="flex-1 flex flex-col gap-6">
+            <!-- KPI Grid -->
+            <!-- KPI Grid -->
+            <div class="grid grid-cols-3 gap-6">
+                <!-- Timesheets Submitted -->
+                <div
+                    class="card p-6 flex flex-col items-center justify-center text-center relative border-l-4 border-l-green-500">
+                    <div class="absolute top-4 left-4 p-2 kpi-icon rounded-lg"><i data-lucide="file-check"
+                            class="w-5 h-5 text-green-600"></i></div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase mt-2">Timesheets Submitted</p>
+                    <h3 class="text-5xl font-bold text-slate-800 my-2" id="stat-submitted">0</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Timesheet Number Present</p>
+                </div>
+
+                <!-- Timesheets Not Submitted -->
+                <div
+                    class="card p-6 flex flex-col items-center justify-center text-center relative border-l-4 border-l-orange-500">
+                    <div class="absolute top-4 left-4 p-2 kpi-icon rounded-lg"><i data-lucide="file-x"
+                            class="w-5 h-5 text-orange-600"></i></div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase mt-2">Uncollected / Not Submitted</p>
+                    <h3 class="text-5xl font-bold text-slate-800 my-2" id="stat-uncollected">0</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Timesheet Number Blank</p>
+                </div>
+
+                <!-- Teams -->
+                <div
+                    class="card p-6 flex flex-col items-center justify-center text-center relative border-l-4 border-l-blue-500">
+                    <div class="absolute top-4 left-4 p-2 kpi-icon rounded-lg"><i data-lucide="users"
+                            class="w-5 h-5 text-blue-600"></i></div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase mt-2">Teams Deployed</p>
+                    <h3 class="text-5xl font-bold text-slate-800 my-2" id="stat-teams">0</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Count of D Numbers</p>
+                </div>
+
+                <!-- Technicians -->
+                <div
+                    class="card p-6 flex flex-col items-center justify-center text-center relative border-l-4 border-l-indigo-500">
+                    <div class="absolute top-4 left-4 p-2 kpi-icon rounded-lg"><i data-lucide="user"
+                            class="w-5 h-5 text-indigo-600"></i></div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase mt-2">Technicians</p>
+                    <h3 class="text-5xl font-bold text-slate-800 my-2" id="stat-techs">0</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Unique Count of Names</p>
+                </div>
+
+                <!-- Clients -->
+                <div
+                    class="card p-6 flex flex-col items-center justify-center text-center relative border-l-4 border-l-purple-500">
+                    <div class="absolute top-4 left-4 p-2 kpi-icon rounded-lg"><i data-lucide="briefcase"
+                            class="w-5 h-5 text-purple-600"></i></div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase mt-2">Clients</p>
+                    <h3 class="text-5xl font-bold text-slate-800 my-2" id="stat-clients">0</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Unique Count of Clients</p>
+                </div>
+
+                <!-- Sites -->
+                <div
+                    class="card p-6 flex flex-col items-center justify-center text-center relative border-l-4 border-l-rose-500">
+                    <div class="absolute top-4 left-4 p-2 kpi-icon rounded-lg"><i data-lucide="map-pin"
+                            class="w-5 h-5 text-rose-600"></i></div>
+                    <p class="text-[10px] font-black text-slate-500 uppercase mt-2">Sites</p>
+                    <h3 class="text-5xl font-bold text-slate-800 my-2" id="stat-sites">0</h3>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">Unique Site Locations</p>
+                </div>
+            </div>
+
+            <!-- Main Charts Card -->
+            <div class="card p-8 flex-1 flex flex-col gap-6">
+                <h2 class="text-lg font-bold text-slate-800">Daily Deployment Breakdown</h2>
+
+                <div class="flex flex-1 gap-8">
+                    <!-- Main Bar Chart -->
+                    <div class="flex-[2] flex flex-col">
+                        <p class="text-xs font-bold text-slate-700 mb-6 text-center">Teams & Technicians by Department
+                        </p>
+                        <div id="mainChart" class="flex-1"></div>
+                    </div>
+
+                    <!-- Side Chart & Legend -->
+                    <div class="flex-1 flex flex-col gap-10">
+                        <div>
+                            <p class="text-xs font-bold text-slate-700 mb-2 text-center">Test Method</p>
+                            <div id="pieChart" class="h-32"></div>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-700 mb-4 text-center">Uncollected Timesheets by
+                                Department</p>
+                            <div id="uncollectedChart" class="h-48"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operational Details Table -->
+            <div class="card p-8 flex flex-col gap-6">
+                <h2 class="text-lg font-bold text-slate-800">Operational Details</h2>
+                <div class="max-h-[400px] overflow-y-auto">
+                    <table class="w-full text-left text-[11px]">
+                        <thead>
+                            <tr
+                                class="border-b border-slate-200 text-slate-500 uppercase font-black sticky top-0 bg-white">
+                                <th class="pb-3 px-2">Job No</th>
+                                <th class="pb-3 px-2">Client</th>
+                                <th class="pb-3 px-2">Site</th>
+                                <th class="pb-3 px-2">Method</th>
+                                <th class="pb-3 px-2">QC Name</th>
+                                <th class="pb-3 px-2">Technicians</th>
+                                <th class="pb-3 px-2">Timesheet</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsTableBody" class="divide-y divide-slate-100">
+                            <!-- Rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawJobs = [];
+        let currentDept = 'All';
+        let charts = { main: null, pie: null, uncollected: null };
+
+        lucide.createIcons();
+        document.getElementById('refresh-time').innerText = new Date().toLocaleString();
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Show file info
+            document.getElementById('file-info').classList.remove('hidden');
+            document.getElementById('uploaded-filename').innerText = file.name;
+
+            const reader = new FileReader();
+            reader.onload = function (evt) {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const sheetName = wb.SheetNames[0];
+                const ws = wb.Sheets[sheetName];
+                const data = XLSX.utils.sheet_to_json(ws, { header: "A", defval: "" });
+
+                // Update file info with sheet name
+                document.getElementById('uploaded-filename').innerHTML = `${file.name}<br><span class="text-[9px] font-medium opacity-70 italic">Sheet: ${sheetName}</span>`;
+
+                rawJobs = data.slice(1).map(row => {
+                    const jobNo = String(row.A || "").trim();
+                    const t1 = String(row.H || "").trim();
+                    const t2 = String(row.I || "").trim();
+                    const t3 = String(row.J || "").trim();
+                    const uniqueTechs = new Set([t1, t2, t3].filter(t => t !== ""));
+
+                    // Extract date parts for filtering
+                    let dateStr = String(row.C || "").trim();
+                    let dateObj = null;
+                    let dateLabel = "Unknown";
+                    let monthLabel = "Unknown";
+
+                    if (dateStr) {
+                        // Handle Excel date numbers
+                        if (!isNaN(dateStr) && !isNaN(parseFloat(dateStr)) && dateStr.length < 10) {
+                            const serial = parseFloat(dateStr);
+                            dateObj = new Date(Math.round((serial - 25569) * 86400 * 1000));
+                        } else {
+                            dateObj = new Date(dateStr);
+                        }
+
+                        if (!isNaN(dateObj)) {
+                            dateLabel = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                            const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                            monthLabel = `${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+                        } else {
+                            dateObj = null;
+                        }
+                    }
+
+                    return {
+                        dNo: jobNo,
+                        timesheet: String(row.B || "").trim(),
+                        date: dateStr,
+                        dateObj: dateObj,
+                        dateLabel: dateLabel,
+                        monthLabel: monthLabel,
+                        client: String(row.D || "").trim(),
+                        qc: String(row.E || "").trim(),
+                        site: String(row.F || "").trim(),
+                        method: String(row.G || "").trim(),
+                        dept: jobNo.split('-')[0].trim(),
+                        techs: Array.from(uniqueTechs)
+                    };
+                }).filter(j => j.dNo !== "");
+
+                // Update Month and Dept filters dynamically
+                updateFilters();
+                updateDashboard();
+                lucide.createIcons();
+            };
+            reader.readAsBinaryString(file);
+        }
+
+        function updateFilters() {
+            // Populate Month select with last 12 unique months
+            const monthMap = new Map();
+            rawJobs.forEach(j => {
+                if (j.dateObj && j.monthLabel !== "Unknown") {
+                    if (!monthMap.has(j.monthLabel)) {
+                        monthMap.set(j.monthLabel, new Date(j.dateObj.getFullYear(), j.dateObj.getMonth(), 1));
+                    }
+                }
+            });
+
+            const sortedMonths = Array.from(monthMap.entries())
+                .sort((a, b) => b[1] - a[1]) // Latest first
+                .slice(0, 12)
+                .map(e => e[0]);
+
+            const monthSelect = document.getElementById('monthSelect');
+            monthSelect.innerHTML = '<option value="All">All Months</option>';
+            sortedMonths.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                monthSelect.appendChild(opt);
+            });
+
+            const depts = [...new Set(rawJobs.map(j => j.dept))].sort();
+            const deptList = document.getElementById('deptList');
+            deptList.innerHTML = `<button onclick="filterDept('All')" class="w-full text-left px-4 py-3 text-sm font-bold hover:bg-slate-50 transition-colors ${currentDept === 'All' ? 'sidebar-item-active font-bold' : ''}" data-dept="All">All Departments</button>`;
+            depts.forEach(d => {
+                const btn = document.createElement('button');
+                btn.onclick = () => filterDept(d);
+                btn.className = `w-full text-left px-4 py-3 text-sm font-medium hover:bg-slate-50 transition-colors ${currentDept === d ? 'sidebar-item-active font-bold' : ''}`;
+                btn.dataset.dept = d;
+                btn.textContent = `Dept ${d}`;
+                deptList.appendChild(btn);
+            });
+        }
+
+        function filterDept(dept) {
+            currentDept = dept;
+            document.querySelectorAll('#deptList button').forEach(btn => {
+                btn.classList.remove('sidebar-item-active');
+                btn.classList.remove('font-bold');
+            });
+            const activeBtn = document.querySelector(`[data-dept="${dept}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('sidebar-item-active');
+                activeBtn.classList.add('font-bold');
+            }
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            const fromDateVal = document.getElementById('fromDate').value;
+            const toDateVal = document.getElementById('toDate').value;
+            const selectedMonth = document.getElementById('monthSelect').value;
+
+            let filtered = rawJobs;
+
+            // Apply Date Range Filter
+            if (fromDateVal || toDateVal) {
+                const fromDate = fromDateVal ? new Date(fromDateVal) : null;
+                const toDate = toDateVal ? new Date(toDateVal) : null;
+
+                // Set toDate to end of day
+                if (toDate) toDate.setHours(23, 59, 59, 999);
+
+                filtered = filtered.filter(j => {
+                    if (!j.dateObj) return false;
+                    const d = j.dateObj;
+                    if (fromDate && d < fromDate) return false;
+                    if (toDate && d > toDate) return false;
+                    return true;
+                });
+            } else if (selectedMonth !== 'All') {
+                filtered = filtered.filter(j => j.monthLabel === selectedMonth);
+            }
+
+            if (currentDept !== 'All') {
+                filtered = filtered.filter(j => j.dept === currentDept);
+            }
+
+            // Requirements mapping:
+            // 1. Timesheets submitted: Timesheet number not equal blank
+            const submitted = filtered.filter(j => j.timesheet !== "").length;
+            document.getElementById('stat-submitted').innerText = submitted;
+
+            // 2. Timesheets not submitted / uncollected: Timesheet number = blank
+            const uncollected = filtered.filter(j => j.timesheet === "").length;
+            document.getElementById('stat-uncollected').innerText = uncollected;
+
+            // 3. Teams deployed: Count of D no
+            const teams = filtered.length;
+            document.getElementById('stat-teams').innerText = teams;
+
+            // 4. Technicians: Unique count of names (in technician 1 + 2 + 3)
+            const uniqueTechs = new Set();
+            filtered.forEach(j => j.techs.forEach(t => uniqueTechs.add(t)));
+            document.getElementById('stat-techs').innerText = uniqueTechs.size;
+
+            // 5. Clients: Unique count of client
+            const uniqueClients = new Set(filtered.map(j => j.client).filter(c => c !== "")).size;
+            document.getElementById('stat-clients').innerText = uniqueClients;
+
+            // 6. Sites: Unique count of site location
+            const uniqueSites = new Set(filtered.map(j => j.site).filter(s => s !== "")).size;
+            document.getElementById('stat-sites').innerText = uniqueSites;
+
+            // Header/Misc
+            document.getElementById('stat-total-records').innerText = filtered.length;
+            if (fromDateVal || toDateVal) {
+                const fmt = { day: '2-digit', month: 'short', year: 'numeric' };
+                let rangeText = "";
+                if (fromDateVal && toDateVal) {
+                    rangeText = `${new Date(fromDateVal).toLocaleDateString('en-GB', fmt)} - ${new Date(toDateVal).toLocaleDateString('en-GB', fmt)}`;
+                } else if (fromDateVal) {
+                    rangeText = `From ${new Date(fromDateVal).toLocaleDateString('en-GB', fmt)}`;
+                } else {
+                    rangeText = `To ${new Date(toDateVal).toLocaleDateString('en-GB', fmt)}`;
+                }
+                document.getElementById('current-month-label').innerText = rangeText;
+            } else if (selectedMonth !== 'All') {
+                document.getElementById('current-month-label').innerText = selectedMonth;
+            } else {
+                document.getElementById('current-month-label').innerText = "All Data";
+            }
+
+            // Update Details Table
+            const tbody = document.getElementById('detailsTableBody');
+            tbody.innerHTML = '';
+            filtered.forEach(j => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="py-3 px-2 font-bold text-slate-700">${j.dNo}</td>
+                    <td class="py-3 px-2">${j.client}</td>
+                    <td class="py-3 px-2">${j.site}</td>
+                    <td class="py-3 px-2">${j.method}</td>
+                    <td class="py-3 px-2 text-slate-500">${j.qc}</td>
+                    <td class="py-3 px-2">${j.techs.join(', ')}</td>
+                    <td class="py-3 px-2">
+                        <span class="px-2 py-1 rounded text-[9px] font-bold uppercase ${j.timesheet ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}">
+                            ${j.timesheet || 'Pending'}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            renderCharts(filtered);
+            lucide.createIcons();
+        }
+
+        function renderCharts(data) {
+            // Main Bar Chart: Teams by Dept
+            const deptStats = {};
+            data.forEach(j => {
+                if (!deptStats[j.dept]) deptStats[j.dept] = 0;
+                deptStats[j.dept]++;
+            });
+
+            const categories = Object.keys(deptStats).sort();
+            const mainOptions = {
+                series: [{
+                    name: 'Teams',
+                    data: categories.map(c => deptStats[c])
+                }],
+                chart: { type: 'bar', height: '100%', toolbar: { show: false } },
+                plotOptions: { bar: { columnWidth: '45%', borderRadius: 4, dataLabels: { position: 'top' } } },
+                colors: ['#4361ee'],
+                xaxis: { categories: categories, axisBorder: { show: false } },
+                dataLabels: { enabled: true, offsetY: -20, style: { colors: ['#334155'] } },
+                grid: { borderColor: '#f1f5f9' }
+            };
+
+            if (charts.main) charts.main.destroy();
+            charts.main = new ApexCharts(document.querySelector("#mainChart"), mainOptions);
+            charts.main.render();
+
+            // Job Type Distribution (Method)
+            const methodCounts = {};
+            data.forEach(j => {
+                if (j.method) methodCounts[j.method] = (methodCounts[j.method] || 0) + 1;
+            });
+            const pieOptions = {
+                series: Object.values(methodCounts),
+                labels: Object.keys(methodCounts),
+                chart: { type: 'donut', height: '100%' },
+                legend: { show: false },
+                dataLabels: { enabled: false },
+                colors: ['#1e3a5f', '#4361ee', '#94a3b8', '#cbd5e1', '#f43f5e', '#8b5cf6']
+            };
+            if (charts.pie) charts.pie.destroy();
+            charts.pie = new ApexCharts(document.querySelector("#pieChart"), pieOptions);
+            charts.pie.render();
+
+            // Uncollected by Dept
+            const uncollectedByDept = {};
+            data.forEach(j => {
+                if (j.timesheet === "") {
+                    uncollectedByDept[j.dept] = (uncollectedByDept[j.dept] || 0) + 1;
+                }
+            });
+            const unOptions = {
+                series: [{ name: 'Uncollected', data: Object.values(uncollectedByDept) }],
+                chart: { type: 'bar', height: '100%', toolbar: { show: false } },
+                plotOptions: { bar: { horizontal: true, barHeight: '40%', borderRadius: 4 } },
+                colors: ['#f59e0b'],
+                xaxis: { categories: Object.keys(uncollectedByDept) },
+                dataLabels: { enabled: true, textAnchor: 'start', offsetX: 10, style: { colors: ['#334155'] } }
+            };
+            if (charts.uncollected) charts.uncollected.destroy();
+            charts.uncollected = new ApexCharts(document.querySelector("#uncollectedChart"), unOptions);
+            charts.uncollected.render();
+        }
+    </script>
+</body>
+
+</html>
